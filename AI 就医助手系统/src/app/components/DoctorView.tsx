@@ -22,6 +22,8 @@ import { ScrollArea } from './ui/scroll-area';
 import { Separator } from './ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { SpeechTranscription } from '../utils/speechTranscription';
+import { MedicalSummaryPanel } from './MedicalSummaryPanel';
+import { medicalSummaryAPI } from '../utils/medicalAPI';
 
 interface DoctorViewProps {
   accessibilityMode: boolean;
@@ -51,6 +53,15 @@ interface ConsultationRecord {
   transcript: string;
   timestamp: Date;
   generatedSummary?: string;
+}
+
+interface MedicalSummary {
+  summaryId: string;
+  visitId: string;
+  content: string;
+  status: 'generating' | 'completed' | 'error';
+  timestamp: Date;
+  isStreaming?: boolean;
 }
 
 export function DoctorView({ accessibilityMode }: DoctorViewProps) {
@@ -253,29 +264,14 @@ export function DoctorView({ accessibilityMode }: DoctorViewProps) {
     }
   };
 
-  // 调用MedicalSummaryController接口生成病例总结
-  const generateMedicalSummaryFromAPI = async (patientId: string) => {
-    if (!selectedPatient) return;
-    
+  // 测试API接口
+  const testAPIConnection = async () => {
     try {
-      const visitId = 'visit_001';
-      const doctorId = 'doctor_001';
+      const summaries = await medicalSummaryAPI.getAllSummaries();
       
-      const response = await fetch(`/api/medical-summary/generate/${visitId}?doctorId=${doctorId}&patientId=${patientId}`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'text/event-stream',
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error('生成病例总结失败');
-      }
-      
-      alert('病例总结生成请求已发送，请查看服务端日志');
+      alert(`API连接测试成功！\n病历总结数量: ${summaries.length}`);
     } catch (error) {
-      console.error('调用病例总结接口失败:', error);
-      alert('调用病例总结接口失败: ' + (error instanceof Error ? error.message : '未知错误'));
+      alert(`API连接测试失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   };
 
@@ -318,7 +314,7 @@ ${consultationTranscript}
     };
 
     setConsultationRecords([newRecord, ...consultationRecords]);
-    alert('病��总结已生成！');
+    alert('病历总结已生成！');
   };
 
   return (
@@ -352,6 +348,16 @@ ${consultationTranscript}
             >
               <QrCode className="w-4 h-4" />
               扫描患者就诊码
+            </Button>
+
+            {/* API测试按钮 */}
+            <Button 
+              onClick={testAPIConnection}
+              variant="outline" 
+              className="w-full mb-4 gap-2"
+            >
+              <Sparkles className="w-4 h-4" />
+              测试API连接
             </Button>
 
             {/* 患者列表 */}
@@ -407,15 +413,6 @@ ${consultationTranscript}
                     <h2>AI 病情摘要</h2>
                   </div>
                   <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="gap-2"
-                      onClick={() => generateMedicalSummaryFromAPI(selectedPatient.id)}
-                    >
-                      <Sparkles className="w-4 h-4" />
-                      病例总结
-                    </Button>
                     <Button variant="outline" size="sm" className="gap-2">
                       <Download className="w-4 h-4" />
                       导入HIS系统
@@ -500,6 +497,18 @@ ${consultationTranscript}
                     </div>
                   </div>
                 </div>
+              </Card>
+
+              {/* AI 病例总结面板 */}
+              <Card className="p-6">
+                <MedicalSummaryPanel 
+                  patientId={selectedPatient.id}
+                  patientName={selectedPatient.name}
+                  accessibilityMode={accessibilityMode}
+                  onSummaryGenerated={(summary) => {
+                    console.log('病例总结生成完成:', summary);
+                  }}
+                />
               </Card>
 
               {/* 问诊记录 */}
