@@ -1,6 +1,8 @@
-import { Mic, StopCircle, AlertCircle, CheckCircle } from 'lucide-react';
-import { Button } from '../ui/button';
+import { Mic, StopCircle, AlertCircle, CheckCircle, Wifi, WifiOff } from 'lucide-react';
+import { Button } from './ui/button';
 import { useSpeechTranscription } from '../utils/useSpeechTranscription';
+import { testBackendConnection, testMediaDevices } from '../utils/apiTest';
+import { useEffect, useState } from 'react';
 
 interface VoiceRecorderProps {
   userId: string;
@@ -21,6 +23,10 @@ export function VoiceRecorder({
   className = '',
   size = 'md'
 }: VoiceRecorderProps) {
+  const [backendConnected, setBackendConnected] = useState<boolean | null>(null);
+  const [mediaSupported, setMediaSupported] = useState<boolean | null>(null);
+  const [initError, setInitError] = useState<string>('');
+
   const {
     isRecording,
     transcript,
@@ -33,6 +39,35 @@ export function VoiceRecorder({
     reset,
     formatTime
   } = useSpeechTranscription();
+
+  // 初始化检查
+  useEffect(() => {
+    const initializeRecorder = async () => {
+      console.log('初始化语音录制器...');
+      
+      // 检查后端连接
+      const backendOk = await testBackendConnection();
+      setBackendConnected(backendOk);
+      
+      if (!backendOk) {
+        setInitError('无法连接到后端服务，请检查服务器是否启动');
+        return;
+      }
+      
+      // 检查媒体设备支持
+      const mediaTest = await testMediaDevices();
+      setMediaSupported(mediaTest.supported);
+      
+      if (!mediaTest.supported) {
+        setInitError(mediaTest.error || '媒体设备不支持');
+        return;
+      }
+      
+      console.log('语音录制器初始化完成');
+    };
+    
+    initializeRecorder();
+  }, []);
 
   const handleStartRecording = async () => {
     await startRecording();
@@ -81,6 +116,40 @@ export function VoiceRecorder({
 
   return (
     <div className={`space-y-4 ${className}`}>
+      {/* 初始化状态显示 */}
+      {(backendConnected === false || mediaSupported === false) && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-red-900 font-medium">系统初始化失败</p>
+              <p className="text-sm text-red-700 mt-1">{initError}</p>
+              {backendConnected === false && (
+                <div className="flex items-center gap-2 mt-2 text-sm text-red-600">
+                  <WifiOff className="w-4 h-4" />
+                  后端服务未连接
+                </div>
+              )}
+              {mediaSupported === false && (
+                <div className="flex items-center gap-2 mt-2 text-sm text-red-600">
+                  <Mic className="w-4 h-4" />
+                  麦克风不可用
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 初始化成功显示 */}
+      {backendConnected === true && mediaSupported === true && (
+        <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-center gap-2 text-sm text-green-700">
+            <Wifi className="w-4 h-4" />
+            系统就绪，可以开始录音
+          </div>
+        </div>
+      )}
       {/* 录音状态显示区域 */}
       <div className={`
         border-2 rounded-lg ${sizeClasses.container} text-center transition-all
@@ -146,7 +215,7 @@ export function VoiceRecorder({
           <Button 
             onClick={handleStartRecording}
             className={`gap-2 ${sizeClasses.button}`}
-            disabled={status === 'error'}
+            disabled={status === 'error' || backendConnected !== true || mediaSupported !== true}
           >
             <Mic className="w-4 h-4" />
             开始录音

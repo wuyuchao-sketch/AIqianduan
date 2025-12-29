@@ -22,6 +22,11 @@ export class SpeechTranscription {
 
   async startRecording(): Promise<void> {
     try {
+      // 检查浏览器支持
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('您的浏览器不支持录音功能，请使用现代浏览器');
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           sampleRate: 16000,
@@ -31,9 +36,21 @@ export class SpeechTranscription {
         }
       });
 
-      this.mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      });
+      // 检查 MediaRecorder 支持的格式
+      let mimeType = 'audio/webm;codecs=opus';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'audio/webm';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = 'audio/mp4';
+          if (!MediaRecorder.isTypeSupported(mimeType)) {
+            mimeType = '';
+          }
+        }
+      }
+
+      this.mediaRecorder = new MediaRecorder(stream, 
+        mimeType ? { mimeType } : undefined
+      );
       
       this.audioChunks = [];
       
@@ -53,6 +70,16 @@ export class SpeechTranscription {
       this.isRecording = true;
 
     } catch (error) {
+      console.error('录音启动失败:', error);
+      if (error instanceof Error) {
+        if (error.name === 'NotAllowedError') {
+          throw new Error('请允许浏览器访问麦克风权限');
+        } else if (error.name === 'NotFoundError') {
+          throw new Error('未找到可用的麦克风设备');
+        } else if (error.name === 'NotSupportedError') {
+          throw new Error('您的浏览器不支持录音功能');
+        }
+      }
       throw new Error(`录音失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   }
@@ -135,37 +162,68 @@ export class SpeechTranscription {
       formData.append('pd', config.domain);
     }
 
-    try {
-      const response = await fetch('/api/transcription/upload', {
-        method: 'POST',
-        body: formData
-      });
+    // 重试机制
+    const maxRetries = 3;
+    let lastError: Error | null = null;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`尝试第 ${attempt} 次上传音频文件...`);
+        
+        const response = await fetch('/api/transcription/upload', {
+          method: 'POST',
+          body: formData,
+          headers: {
+            // 不要手动设置 Content-Type，让浏览器自动设置
+          }
+        });
+
+        console.log(`响应状态: ${response.status}`);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`HTTP ${response.status} 错误:`, errorText);
+          throw new Error(`服务器错误 (${response.status}): ${errorText || '未知错误'}`);
+        }
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await response.text();
+          console.error('非 JSON 响应:', text);
+          throw new Error('服务器返回了非 JSON 格式的响应');
+        }
+
+        const data = await response.json();
+        console.log('转录响应数据:', data);
+        
+        if (data.status === 'SUCCESS') {
+          return {
+            status: 'SUCCESS',
+            transcriptionText: data.transcriptionText || data.fullText || '',
+            message: data.message
+          };
+        } else {
+          return {
+            status: 'ERROR',
+            errorMessage: data.message || data.errorMessage || '转录失败'
+          };
+        }
+
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('未知错误');
+        console.error(`第 ${attempt} 次尝试失败:`, lastError.message);
+        
+        // 如果不是最后一次尝试，等待一段时间后重试
+        if (attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        }
       }
-
-      const data = await response.json();
-      
-      if (data.status === 'SUCCESS') {
-        return {
-          status: 'SUCCESS',
-          transcriptionText: data.transcriptionText || data.fullText || '',
-          message: data.message
-        };
-      } else {
-        return {
-          status: 'ERROR',
-          errorMessage: data.message || data.errorMessage || '转录失败'
-        };
-      }
-
-    } catch (error) {
-      return {
-        status: 'ERROR',
-        errorMessage: `转录失败: ${error instanceof Error ? error.message : '未知错误'}`
-      };
     }
+
+    return {
+      status: 'ERROR',
+      errorMessage: `转录失败 (已重试 ${maxRetries} 次): ${lastError?.message || '未知错误'}`
+    };
   }
 
   getAudioVisualizationData(): Uint8Array | null {

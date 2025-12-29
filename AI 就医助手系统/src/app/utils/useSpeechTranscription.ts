@@ -71,19 +71,24 @@ export function useSpeechTranscription() {
       setTranscript('');
       setErrorMessage('');
       
+      console.log('开始录音...');
       await speechTranscription.current.startRecording();
       setIsRecording(true);
       
       startTimer();
       startVisualizer();
+      console.log('录音已开始');
     } catch (error) {
+      console.error('录音启动失败:', error);
       setStatus('error');
+      setIsRecording(false);
       setErrorMessage(error instanceof Error ? error.message : '录音启动失败');
     }
   }, [startTimer, startVisualizer]);
 
   const stopRecording = useCallback(async (config: TranscriptionConfig) => {
     try {
+      console.log('停止录音并开始处理...');
       setStatus('processing');
       setIsRecording(false);
       
@@ -91,21 +96,31 @@ export function useSpeechTranscription() {
       stopVisualizer();
       
       const audioBlob = await speechTranscription.current.stopRecording();
+      console.log('音频文件大小:', audioBlob.size, 'bytes');
+      
+      if (audioBlob.size === 0) {
+        throw new Error('录音文件为空，请重新录制');
+      }
       
       const result = await speechTranscription.current.transcribeAudio(audioBlob, config);
       
       if (result.status === 'SUCCESS' && result.transcriptionText) {
         setTranscript(result.transcriptionText);
         setStatus('ready');
+        console.log('转录成功:', result.transcriptionText);
         return result.transcriptionText;
       } else {
         setStatus('error');
-        setErrorMessage(result.errorMessage || '转录失败');
+        const errorMsg = result.errorMessage || '转录失败，请检查网络连接或重试';
+        setErrorMessage(errorMsg);
+        console.error('转录失败:', errorMsg);
         return null;
       }
     } catch (error) {
+      console.error('处理录音失败:', error);
       setStatus('error');
-      setErrorMessage(error instanceof Error ? error.message : '处理录音失败');
+      const errorMsg = error instanceof Error ? error.message : '处理录音失败';
+      setErrorMessage(errorMsg);
       setIsRecording(false);
       stopTimer();
       stopVisualizer();
