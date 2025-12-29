@@ -198,7 +198,6 @@ export function PatientView({ accessibilityMode, setAccessibilityMode }: Patient
   };
 
   const generateQRCode = () => {
-    // 模拟生成二维码供医生扫描
     alert('已生成就诊二维码，医生扫描后可查看您的病情摘要');
   };
 
@@ -478,30 +477,6 @@ export function PatientView({ accessibilityMode, setAccessibilityMode }: Patient
               </div>
             </Card>
           )}
-
-          {/* 数据访问记录 */}
-          <Card className="p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Shield className="w-6 h-6 text-blue-600" />
-              <h2>数据访问记录</h2>
-            </div>
-
-            <div className="space-y-3">
-              {dataLogs.map((log) => (
-                <div key={log.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className={accessibilityMode ? 'text-lg' : ''}>
-                      {log.accessor} - {log.purpose}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {log.timestamp.toLocaleString('zh-CN')} · {log.dataType}
-                    </p>
-                  </div>
-                  <Badge variant="outline">已授权</Badge>
-                </div>
-              ))}
-            </div>
-          </Card>
         </div>
 
         {/* 右侧：隐私控制 */}
@@ -580,172 +555,27 @@ export function PatientView({ accessibilityMode, setAccessibilityMode }: Patient
               </p>
             </div>
           </Card>
-        </div>
-      </div>
-    </div>
-  );
-}"sm" 
-                        variant="outline"
-                        onClick={generateQRCode}
-                        className="gap-2"
-                      >
-                        <QrCode className="w-4 h-4" />
-                        生成就诊码
-                      </Button>
-                    </div>
 
-                    <div className="grid md:grid-cols-2 gap-4 mb-3">
-                      <div>
-                        <Label className="text-gray-600">主诉</Label>
-                        <p className={accessibilityMode ? 'text-lg mt-1' : 'mt-1'}>
-                          {record.summary.chiefComplaint}
-                        </p>
-                      </div>
-                      <div>
-                        <Label className="text-gray-600">持续时间</Label>
-                        <p className={accessibilityMode ? 'text-lg mt-1' : 'mt-1'}>
-                          {record.summary.duration}
-                        </p>
-                      </div>
-                      <div>
-                        <Label className="text-gray-600">严重程度</Label>
-                        <p className={accessibilityMode ? 'text-lg mt-1' : 'mt-1'}>
-                          {record.summary.severity}
-                        </p>
-                      </div>
-                      <div>
-                        <Label className="text-gray-600">已用药物</Label>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {record.summary.medications.map((med, idx) => (
-                            <Badge key={idx} variant="secondary">{med}</Badge>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label className="text-gray-600">补充说明</Label>
-                      <p className={`${accessibilityMode ? 'text-lg' : ''} text-gray-700 mt-1`}>
-                        {record.summary.additionalNotes}
-                      </p>
-                    </div>
-
-                    <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded flex items-start gap-2">
-                      <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
-                      <div className="text-sm">
-                        <p className="text-green-900">AI 可信度评估：高</p>
-                        <p className="text-green-700">
-                          判断依据：症状描述清晰，时间线完整，包含关键信息（体温、用药）
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
-        </div>
-
-        {/* 右侧：隐私控制面板 */}
-        <div className="space-y-6">
           <Card className="p-6">
             <div className="flex items-center gap-2 mb-4">
               <Shield className="w-6 h-6 text-blue-600" />
-              <h2>隐私与授权</h2>
+              <h2>数据访问记录</h2>
             </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="data-consent">数据收集授权</Label>
-                  <p className="text-sm text-gray-500">允许收集健康数据</p>
+            <div className="space-y-3">
+              {dataLogs.map((log) => (
+                <div key={log.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className={accessibilityMode ? 'text-lg' : ''}>
+                      {log.accessor} - {log.purpose}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {log.timestamp.toLocaleString('zh-CN')} · {log.dataType}
+                    </p>
+                  </div>
+                  <Badge variant="outline">已授权</Badge>
                 </div>
-                <Switch 
-                  id="data-consent"
-                  checked={dataConsent}
-                  onCheckedChange={setDataConsent}
-                />
-              </div>
-
-              <Separator />
-
-              <div>
-                <Label className="mb-2 block">授权范围</Label>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                    <span className="text-sm">症状记录</span>
-                    <Badge variant="outline">已授权</Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                    <span className="text-sm">用药历史</span>
-                    <Badge variant="outline">已授权</Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                    <span className="text-sm">就诊记录</span>
-                    <Badge variant="outline">已授权</Badge>
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="w-full gap-2">
-                    <Eye className="w-4 h-4" />
-                    查看使用日志
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl">
-                  <DialogHeader>
-                    <DialogTitle>数据使用日志</DialogTitle>
-                  </DialogHeader>
-                  <ScrollArea className="h-[400px] pr-4">
-                    <div className="space-y-3">
-                      {dataLogs.map((log) => (
-                        <div key={log.id} className="border rounded-lg p-4">
-                          <div className="flex items-center justify-between mb-2">
-                            <span>{log.accessor}</span>
-                            <Badge>{log.purpose}</Badge>
-                          </div>
-                          <div className="text-sm text-gray-600 space-y-1">
-                            <p>访问时间: {log.timestamp.toLocaleString('zh-CN')}</p>
-                            <p>访问数据: {log.dataType}</p>
-                          </div>
-                          <Button 
-                            size="sm" 
-                            variant="destructive" 
-                            className="mt-2 gap-1"
-                          >
-                            <EyeOff className="w-3 h-3" />
-                            撤销此次授权
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </DialogContent>
-              </Dialog>
-
-              <Button variant="destructive" className="w-full" disabled={!dataConsent}>
-                一键撤销所有授权
-              </Button>
-            </div>
-          </Card>
-
-          {/* 安全提示 */}
-          <Card className="p-6 bg-blue-50 border-blue-200">
-            <div className="flex items-start gap-3">
-              <Shield className="w-5 h-5 text-blue-600 mt-0.5" />
-              <div>
-                <h3 className="mb-2">数据安全承诺</h3>
-                <ul className="text-sm text-gray-700 space-y-1">
-                  <li>• 所有数据加密存储</li>
-                  <li>• 仅授权医生可查看</li>
-                  <li>• 可随时撤销授权</li>
-                  <li>• 完整的访问日志记录</li>
-                </ul>
-              </div>
+              ))}
             </div>
           </Card>
         </div>
